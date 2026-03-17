@@ -3,10 +3,9 @@ const path = require('path');
 
 const app = express();
 
-// Configuration
+// Config
 const pub = path.join(__dirname, 'public');
 
-// Middleware (modern replacements)
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 
@@ -21,6 +20,10 @@ const PostProvider = new PostProviderClass();
 // Blog index
 app.get('/', function (req, res) {
   PostProvider.findAll(function (error, posts) {
+    if (error) {
+      return res.status(500).send("Internal Server Error");
+    }
+
     res.render('index', {
       title: 'Mongo Node.js Blog',
       posts: posts
@@ -28,14 +31,14 @@ app.get('/', function (req, res) {
   });
 });
 
-// new
+// New post page
 app.get('/posts/new', function (req, res) {
   res.render('post_new', {
     title: 'New Post'
   });
 });
 
-// create
+// Create post
 app.post('/posts/new', function (req, res) {
   PostProvider.save(
     {
@@ -43,14 +46,21 @@ app.post('/posts/new', function (req, res) {
       body: req.body.body
     },
     function (error, docs) {
+      if (error) {
+        return res.status(500).send("Error saving post");
+      }
       res.redirect('/');
     }
   );
 });
 
-// show
+// Show post
 app.get('/posts/:id', function (req, res) {
   PostProvider.findById(req.params.id, function (error, post) {
+    if (error || !post) {
+      return res.status(404).send("Post not found");
+    }
+
     res.render('post_show', {
       title: post.title,
       post: post
@@ -58,9 +68,13 @@ app.get('/posts/:id', function (req, res) {
   });
 });
 
-// edit
+// Edit page
 app.get('/posts/:id/edit', function (req, res) {
   PostProvider.findById(req.params.id, function (error, post) {
+    if (error || !post) {
+      return res.status(404).send("Post not found");
+    }
+
     res.render('post_edit', {
       title: post.title,
       post: post
@@ -68,14 +82,17 @@ app.get('/posts/:id/edit', function (req, res) {
   });
 });
 
-// update
+// Update post
 app.post('/posts/:id/edit', function (req, res) {
   PostProvider.updateById(req.params.id, req.body, function (error, post) {
+    if (error) {
+      return res.status(500).send("Error updating post");
+    }
     res.redirect('/');
   });
 });
 
-// add comment
+// Add comment
 app.post('/posts/addComment', function (req, res) {
   PostProvider.addCommentToPost(
     req.body._id,
@@ -85,6 +102,9 @@ app.post('/posts/addComment', function (req, res) {
       created_at: new Date()
     },
     function (error, docs) {
+      if (error) {
+        return res.status(500).send("Error adding comment");
+      }
       res.redirect('/posts/' + req.body._id);
     }
   );
@@ -94,7 +114,7 @@ app.post('/posts/addComment', function (req, res) {
 const PORT = 3000;
 
 app.listen(PORT, () => {
-  console.log(`Express server listening on port ${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });
 
 module.exports = app;
