@@ -1,112 +1,100 @@
+const express = require('express');
+const path = require('path');
 
-/**
- * Module dependencies.
- */
-
-var express = require('express');
-
-var app = module.exports = express.createServer();
+const app = express();
 
 // Configuration
-var pub = __dirname + '/public';
+const pub = path.join(__dirname, 'public');
 
-app.configure(function(){
-  app.set('views', __dirname + '/views');
-  app.set('view engine', 'ejs');
-  app.use(express.bodyParser());
-  app.use(express.methodOverride());
-  app.use(express.compiler({ src: pub, enable: ['sass'] }));
-  app.use(express.static(pub));
-  app.use(app.router);
-});
+// Middleware (modern replacements)
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
 
-app.configure('development', function(){
-  app.use(express.errorHandler({ dumpExceptions: true, showStack: true })); 
-});
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(pub));
 
-app.configure('production', function(){
-  app.use(express.errorHandler()); 
-});
+// PostProvider
+const PostProviderClass = require('./postprovider').PostProvider;
+const PostProvider = new PostProviderClass();
 
-var PostProvider = require('./postprovider').PostProvider;
-var PostProvider= new PostProvider();
-
-//Blog index
-app.get('/', function(req, res){
-  PostProvider.findAll(function(error, posts){
+// Blog index
+app.get('/', function (req, res) {
+  PostProvider.findAll(function (error, posts) {
     res.render('index', {
-	        locals: {
-	          title: 'Mongo Node.js Blog',
-	          posts: posts
-	        }
-	});
-  })
+      title: 'Mongo Node.js Blog',
+      posts: posts
+    });
+  });
 });
 
-//new
-app.get('/posts/new', function(req, res){
+// new
+app.get('/posts/new', function (req, res) {
   res.render('post_new', {
-             locals: {
-               title: 'New Post'
-             }
+    title: 'New Post'
   });
 });
 
-//create
-app.post('/posts/new', function(req, res){
-  PostProvider.save({
-	title: req.param('title'),
-    body: req.param('body')
-  }, function(error, docs) {
-	res.redirect('/');
-  });
+// create
+app.post('/posts/new', function (req, res) {
+  PostProvider.save(
+    {
+      title: req.body.title,
+      body: req.body.body
+    },
+    function (error, docs) {
+      res.redirect('/');
+    }
+  );
 });
 
-//show
-app.get('/posts/:id', function(req, res){
-  PostProvider.findById(req.param('id'), function(error, post) {
+// show
+app.get('/posts/:id', function (req, res) {
+  PostProvider.findById(req.params.id, function (error, post) {
     res.render('post_show', {
-      locals: {
-        title: post.title,
-        post:post
-      }
+      title: post.title,
+      post: post
     });
   });
 });
 
-//edit
-app.get('/posts/:id/edit', function(req, res){
-  PostProvider.findById(req.param('id'), function(error, post) {
+// edit
+app.get('/posts/:id/edit', function (req, res) {
+  PostProvider.findById(req.params.id, function (error, post) {
     res.render('post_edit', {
-      locals: {
-        title: post.title,
-        post:post
-      }
+      title: post.title,
+      post: post
     });
   });
 });
 
-//update
-app.post('/posts/:id/edit', function(req, res){
-  PostProvider.updateById(req.param('id'), req.body, function(error, post) {
+// update
+app.post('/posts/:id/edit', function (req, res) {
+  PostProvider.updateById(req.params.id, req.body, function (error, post) {
     res.redirect('/');
   });
 });
 
-//add comment
-app.post('/posts/addComment', function(req, res){
-  PostProvider.addCommentToPost(req.body._id, {
-    person: req.body.person,
-    comment: req.body.comment,
-    created_at: new Date()
-  }, function(error, docs) {
-    res.redirect('/posts/' + req.body._id)
-  });
+// add comment
+app.post('/posts/addComment', function (req, res) {
+  PostProvider.addCommentToPost(
+    req.body._id,
+    {
+      person: req.body.person,
+      comment: req.body.comment,
+      created_at: new Date()
+    },
+    function (error, docs) {
+      res.redirect('/posts/' + req.body._id);
+    }
+  );
 });
 
-// Only listen on $ node app.js
+// Start server
+const PORT = 3000;
 
-if (!module.parent) {
-  app.listen(3000);
-  console.log("Express server listening on port %d", app.address().port);
-}
+app.listen(PORT, () => {
+  console.log(`Express server listening on port ${PORT}`);
+});
+
+module.exports = app;
